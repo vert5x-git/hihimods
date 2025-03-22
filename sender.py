@@ -1,12 +1,16 @@
 from .. import loader
-from telethon.tl.types import InputMessagesFilterPhotos, InputMessagesFilterGif
+import asyncio
 
 #meta developer: @Novichok_v_Crypto
 
 class MassSender(loader.Module):
-    """📢 Массовая рассылка по чатам с поддержкой фото, гиф и настройками."""
+    """📢 Массовая рассылка сообщений, фото, гифок, видео и ссылок."""
 
     strings = {"name": "MassSender"}
+
+    def __init__(self):
+        self.sending = False
+        self.fast_mode = False  # По умолчанию медленный режим
 
     async def client_ready(self, client, db):
         self.client = client
@@ -42,28 +46,61 @@ class MassSender(loader.Module):
         await message.edit(f"📜 Чаты:\n{chat_list}")
 
     async def sendcmd(self, message):
-        """📩 Отправить сообщение, фото или гиф (реплай или текст)"""
+        """📩 Отправить сообщение, фото, гиф, видео или ссылку (реплай или текст)"""
         reply = await message.get_reply_message()
         text = message.raw_text.split(" ", 1)[1] if len(message.raw_text.split(" ", 1)) > 1 else None
 
         if not reply and not text:
             return await message.edit("⚠️ Укажите текст или ответьте на сообщение.")
 
+        self.sending = True  # Включаем флаг отправки
         count = 0
+
         for chat in self.chats:
+            if not self.sending:
+                return await message.edit("⏹ Остановлено!")
+
             if not self.allow_pms and chat > 0:
                 continue  # Пропускаем личные сообщения
 
             try:
-                if reply and (reply.photo or reply.gif):
-                    await self.client.send_file(chat, reply)
+                if reply:
+                    if reply.photo:
+                        await self.client.send_file(chat, reply.photo, caption=reply.raw_text or text)
+                    elif reply.gif:
+                        await self.client.send_file(chat, reply.gif, caption=reply.raw_text or text)
+                    elif reply.video:
+                        await self.client.send_file(chat, reply.video, caption=reply.raw_text or text)
+                    elif reply.text and "http" in reply.text:
+                        await self.client.send_message(chat, reply.text)
+                    else:
+                        await self.client.send_message(chat, text if text else reply.raw_text)
                 else:
-                    await self.client.send_message(chat, text if text else reply)
+                    await self.client.send_message(chat, text)
+                
                 count += 1
             except Exception:
                 pass
 
+            if not self.fast_mode:
+                await asyncio.sleep(1)  # Медленный режим: 1 сообщение в секунду
+
         await message.edit(f"✅ Отправлено в {count} чатов.")
+
+    async def stopcmd(self, message):
+        """⏹ Остановить рассылку"""
+        self.sending = False
+        await message.edit("⏹ Рассылка остановлена!")
+
+    async def fastcmd(self, message):
+        """⚡ Включить быстрый режим (100 сообщений в секунду)"""
+        self.fast_mode = True
+        await message.edit("⚡ Быстрый режим включен.")
+
+    async def slowcmd(self, message):
+        """🐢 Включить медленный режим (1 сообщение в секунду)"""
+        self.fast_mode = False
+        await message.edit("🐢 Медленный режим включен.")
 
     async def addallcmd(self, message):
         """📥 Добавить все чаты (без каналов)"""
