@@ -2,10 +2,10 @@ from .. import loader
 from telethon.tl.custom import Button
 import asyncio
 
-#meta developer: @Novichok_v_Crypto
+#meta developer: @Vert5x
 
 class BulkMessenger(loader.Module):
-    """📢 Массовая рассылка сообщений с кнопками."""
+    """📢 Массовая рассылка сообщений по чатам."""
 
     strings = {"name": "BulkMessenger"}
 
