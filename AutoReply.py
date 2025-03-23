@@ -47,13 +47,13 @@ class AutoReplyMod(loader.Module):
         ]
 
     async def artogglecmd(self, message):
-        """Включает/выключает автоответчик"""
+        """🔄 Включает/выключает автоответчик"""
         self.reply_enabled = not self.reply_enabled
         self.db.set("AutoReply", "enabled", self.reply_enabled)
         await utils.answer(message, self.strings["enabled"] if self.reply_enabled else self.strings["disabled"])
 
     async def arsetcmd(self, message):
-        """Задает новое сообщение и изображение для автоответчика"""
+        """✍️ Устанавливает текст и изображение для автоответа"""
         reply = await message.get_reply_message()
         text = utils.get_args_raw(message) or (reply.text if reply else None)
         
@@ -76,7 +76,7 @@ class AutoReplyMod(loader.Module):
         await utils.answer(message, "✅ Автоответ обновлён!")
 
     async def arimagecmd(self, message):
-        """Задает изображение для автоответчика"""
+        """🖼 Устанавливает изображение для автоответчика"""
         reply = await message.get_reply_message()
         if not reply or not reply.media:
             return await utils.answer(message, self.strings["no_image"])
