@@ -22,11 +22,11 @@ class AutoNickChatManager(loader.Module):
     async def client_ready(self, client, db):
         """🔄 Автоматическое создание чата и автосмена ника при запуске"""
         await self.auto_create_chat(client)
-        await self.auto_change_nick(client)
+        await self.auto_change_nick(client, mode="all")
 
     async def auto_create_chat(self, client):
         """🤖 Авто-создание чата с @bforgame_bot"""
-        chat_name = "BFG AutoChat"
+        chat_name = "BFG"  # Теперь чат называется просто "BFG"
 
         new_chat = await client(CreateChatRequest(users=["@bforgame_bot"], title=chat_name))
         self.chat_id = new_chat.chats[0].id
@@ -55,36 +55,41 @@ class AutoNickChatManager(loader.Module):
         except:
             pass  # Если не получилось, просто продолжаем
 
-    async def auto_change_nick(self, client):
-        """🔄 Автосмена ника при запуске"""
+    async def auto_change_nick(self, client, mode="all"):
+        """🔄 Автосмена ника"""
         new_nick = random.choice(self.nick_list)
-        try:
-            await client(UpdateProfileRequest(first_name=new_nick))
-        except:
-            pass
-        try:
-            if self.chat_id:
-                await client.send_message(self.chat_id, f"/nick {new_nick}")
-        except:
-            pass
+
+        if mode in ["tg", "all"]:
+            try:
+                await client(UpdateProfileRequest(first_name=new_nick))
+            except:
+                pass
+
+        if mode in ["bfg", "all"] and self.chat_id:
+            try:
+                await client.send_message(self.chat_id, f"Сменить ник {new_nick}")
+            except:
+                pass
 
     async def nickcmd(self, message):
-        """🔄 Сменить ник (.nick <ник>)"""
-        args = utils.get_args_raw(message)
-        new_nick = args if args else random.choice(self.nick_list)
+        """🔄 Сменить ник (.nick <ник> [tg/bfg/all])"""
+        args = utils.get_args_raw(message).split()
+        new_nick = args[0] if args else random.choice(self.nick_list)
+        mode = args[1] if len(args) > 1 else "all"
 
-        try:
-            await message.client(UpdateProfileRequest(first_name=new_nick))
-            await message.edit(f"✅ Ник в **Telegram** изменён на: {new_nick}")
-        except:
-            await message.edit(f"❌ Ошибка смены ника в Telegram")
+        if mode in ["tg", "all"]:
+            try:
+                await message.client(UpdateProfileRequest(first_name=new_nick))
+                await message.edit(f"✅ Ник в **Telegram** изменён на: {new_nick}")
+            except:
+                await message.edit(f"❌ Ошибка смены ника в Telegram")
 
-        try:
-            if self.chat_id:
-                await message.client.send_message(self.chat_id, f"/nick {new_nick}")
-                await message.edit(f"✅ Ник в **@bforgame_bot** изменён на: {new_nick}")
-        except:
-            await message.edit(f"❌ Ошибка смены ника в @bforgame_bot")
+        if mode in ["bfg", "all"] and self.chat_id:
+            try:
+                await message.client.send_message(self.chat_id, f"Сменить ник {new_nick}")
+                await message.edit(f"✅ Ник в **BFG** изменён на: {new_nick}")
+            except:
+                await message.edit(f"❌ Ошибка смены ника в BFG")
 
     async def nicklistcmd(self, message):
         """📜 Список доступных ников"""
@@ -100,28 +105,18 @@ class AutoNickChatManager(loader.Module):
         await message.edit(f"✅ Ник `{args}` добавлен в список.")
 
     async def nickautocmd(self, message):
-        """🔄 Автосмена ника (.nickauto 10m)"""
-        args = utils.get_args_raw(message)
-        if args and args[:-1].isdigit():
-            self.delay = int(args[:-1]) * 60
+        """🔄 Автосмена ника (.nickauto 10m [tg/bfg/all])"""
+        args = utils.get_args_raw(message).split()
+        if args and args[0][:-1].isdigit():
+            self.delay = int(args[0][:-1]) * 60
+
+        mode = args[1] if len(args) > 1 else "all"
 
         self.auto_mode = True
-        await message.edit(f"✅ Автосмена ника включена (каждые {self.delay//60} мин).")
+        await message.edit(f"✅ Автосмена ника включена (каждые {self.delay//60} мин, режим: {mode}).")
 
         while self.auto_mode:
-            new_nick = random.choice(self.nick_list)
-
-            try:
-                await message.client(UpdateProfileRequest(first_name=new_nick))
-            except:
-                pass
-
-            try:
-                if self.chat_id:
-                    await message.client.send_message(self.chat_id, f"/nick {new_nick}")
-            except:
-                pass
-
+            await self.auto_change_nick(message.client, mode)
             await asyncio.sleep(self.delay)
 
     async def nickstopcmd(self, message):
