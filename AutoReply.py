@@ -6,6 +6,8 @@ import time
 #meta developer: @Vert5x
 
 class AutoReplyMod(loader.Module):
+    """Автоответчик для новых ЛС с базой пользователей и инлайн-кнопками"""
+
     strings = {
         "name": "AutoReply",
         "enabled": "✅ Автоответчик включён",
@@ -13,6 +15,9 @@ class AutoReplyMod(loader.Module):
         "reply_set": "✍️ Сообщение автоответа обновлено",
         "image_set": "🖼 Изображение автоответа обновлено",
         "no_image": "⚠️ Нет изображения",
+        "arset": "✍️ Установить текст и изображение для автоответа",
+        "arimage": "🖼 Установить изображение для автоответа",
+        "artoggle": "🔄 Включить/выключить автоответчик",
     }
 
     DEFAULT_MESSAGE = (
@@ -42,11 +47,13 @@ class AutoReplyMod(loader.Module):
         ]
 
     async def artogglecmd(self, message):
+        """Включает/выключает автоответчик"""
         self.reply_enabled = not self.reply_enabled
         self.db.set("AutoReply", "enabled", self.reply_enabled)
         await utils.answer(message, self.strings["enabled"] if self.reply_enabled else self.strings["disabled"])
 
     async def arsetcmd(self, message):
+        """Задает новое сообщение и изображение для автоответчика"""
         reply = await message.get_reply_message()
         text = utils.get_args_raw(message) or (reply.text if reply else None)
         
@@ -69,6 +76,7 @@ class AutoReplyMod(loader.Module):
         await utils.answer(message, "✅ Автоответ обновлён!")
 
     async def arimagecmd(self, message):
+        """Задает изображение для автоответчика"""
         reply = await message.get_reply_message()
         if not reply or not reply.media:
             return await utils.answer(message, self.strings["no_image"])
@@ -81,6 +89,7 @@ class AutoReplyMod(loader.Module):
         await utils.answer(message, self.strings["image_set"])
 
     async def watcher(self, message):
+        """Отправляет автоответ в новых ЛС (кроме ботов) один раз, сбрасывая список через час"""
         if not self.reply_enabled or not message.is_private or message.out:
             return
 
@@ -111,5 +120,6 @@ class AutoReplyMod(loader.Module):
 
     @loader.inline_handler()
     async def inline_button_handler(self, call):
+        """Обработка инлайн-кнопки "Написать снова" """
         if call.data == b"send_again":
             await call.answer("Попробуйте написать снова!", alert=True)
