@@ -1,15 +1,13 @@
 #meta developer: @Vert5x
 
-from gtts import gTTS
-import io
 import pyttsx3
-import langdetect
+import io
 from telethon.tl.types import Message
 from .. import loader, utils
 
 @loader.tds
 class AutoVoiceTTSMod(loader.Module):
-    """Модуль для озвучивания текста с выбором голоса и автоопределением языка"""
+    """Модуль для озвучивания текста с выбором голоса (без зависимостей)"""
 
     strings = {"name": "AutoVoiceTTS"}
 
@@ -33,32 +31,26 @@ class AutoVoiceTTSMod(loader.Module):
             voice = "female"  # По умолчанию женский голос
             text = args
 
-        # Определяем язык текста
-        try:
-            lang = langdetect.detect(text)
-        except:
-            lang = "ru"  # Если не удалось определить язык, используем русский
-
-        await message.edit(f"🎙 Озвучиваю текст ({'Мужской' if voice == 'male' else 'Женский'} голос, {lang})...")
+        await message.edit(f"🎙 Озвучиваю текст ({'Мужской' if voice == 'male' else 'Женский'} голос)...")
 
         try:
             audio_fp = io.BytesIO()
 
+            # Используем pyttsx3 (он работает без зависимостей)
+            engine = pyttsx3.init()
+            voices = engine.getProperty("voices")
+
+            # Выбираем голос
             if voice == "male":
-                # Используем pyttsx3 для мужского голоса (но он не поддерживает все языки)
-                engine = pyttsx3.init()
-                voices = engine.getProperty("voices")
-                engine.setProperty("voice", voices[0].id)  # Обычно [0] — мужской голос
-                engine.save_to_file(text, "output.mp3")
-                engine.runAndWait()
-
-                with open("output.mp3", "rb") as f:
-                    audio_fp.write(f.read())
-
+                engine.setProperty("voice", voices[0].id)  # Обычно [0] — мужской
             else:
-                # Используем gTTS для женского голоса (поддерживает много языков)
-                tts = gTTS(text=text, lang=lang)
-                tts.write_to_fp(audio_fp)
+                engine.setProperty("voice", voices[1].id)  # Обычно [1] — женский
+
+            engine.save_to_file(text, "output.mp3")
+            engine.runAndWait()
+
+            with open("output.mp3", "rb") as f:
+                audio_fp.write(f.read())
 
             audio_fp.seek(0)
 
