@@ -2,25 +2,49 @@
 
 import pyttsx3
 import io
+import os
+import subprocess
 from telethon.tl.types import Message
 from .. import loader, utils
 
 @loader.tds
 class AutoVoiceTTSMod(loader.Module):
-    """Модуль для озвучивания текста с выбором голоса (без зависимостей)"""
+    """Модуль для озвучивания текста с выбором голоса (с автоматической установкой зависимостей)"""
 
     strings = {"name": "AutoVoiceTTS"}
 
+    def install_dependencies(self):
+        """Автоматическая установка зависимостей (eSpeak и pyttsx3)"""
+        try:
+            subprocess.check_call(["which", "espeak"])
+        except subprocess.CalledProcessError:
+            try:
+                subprocess.check_call(["pkg", "install", "espeak", "-y"])
+            except Exception as e:
+                raise RuntimeError(f"Ошибка установки eSpeak: {e}")
+
+        try:
+            subprocess.check_call(["pip", "show", "pyttsx3"])
+        except subprocess.CalledProcessError:
+            try:
+                subprocess.check_call(["pip", "install", "pyttsx3"])
+            except Exception as e:
+                raise RuntimeError(f"Ошибка установки pyttsx3: {e}")
+
     async def ocmd(self, message: Message):
-        """Использование: .o [м/ж] <текст> — озвучить текст мужским или женским голосом"""
         args = utils.get_args_raw(message)
         if not args:
             await message.edit("❌ Введите текст для озвучки!")
             return
 
+        try:
+            self.install_dependencies()
+        except Exception as e:
+            await message.edit(f"❌ Ошибка установки зависимостей: {str(e)}")
+            return
+
         words = args.split(" ", 1)
 
-        # Определяем голос
         if words[0].lower() == "м":
             voice = "male"
             text = words[1] if len(words) > 1 else "Ошибка: нет текста"
@@ -28,7 +52,7 @@ class AutoVoiceTTSMod(loader.Module):
             voice = "female"
             text = words[1] if len(words) > 1 else "Ошибка: нет текста"
         else:
-            voice = "female"  # По умолчанию женский голос
+            voice = "female"
             text = args
 
         await message.edit(f"🎙 Озвучиваю текст ({'Мужской' if voice == 'male' else 'Женский'} голос)...")
@@ -36,15 +60,13 @@ class AutoVoiceTTSMod(loader.Module):
         try:
             audio_fp = io.BytesIO()
 
-            # Используем pyttsx3 (он работает без зависимостей)
             engine = pyttsx3.init()
             voices = engine.getProperty("voices")
 
-            # Выбираем голос
             if voice == "male":
-                engine.setProperty("voice", voices[0].id)  # Обычно [0] — мужской
+                engine.setProperty("voice", voices[0].id)
             else:
-                engine.setProperty("voice", voices[1].id)  # Обычно [1] — женский
+                engine.setProperty("voice", voices[1].id)
 
             engine.save_to_file(text, "output.mp3")
             engine.runAndWait()
