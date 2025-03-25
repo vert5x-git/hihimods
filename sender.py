@@ -7,7 +7,7 @@ import asyncio
 class MassX(loader.Module):
     """📢 Массовая рассылка сообщений по чатам."""
 
-    strings = {"name": "BulkMessenger"}
+    strings = {"name": "MassX"}
 
     def __init__(self):
         self.sending = False
