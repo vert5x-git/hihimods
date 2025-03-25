@@ -1,7 +1,7 @@
 from .. import loader, utils
 import asyncio
 
-#meta developer: @Vert5x
+#meta developer: @hihimods
 
 class MassX(loader.Module):
     """📢 Модуль для массовой рассылки сообщений"""
