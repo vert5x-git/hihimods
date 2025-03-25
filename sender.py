@@ -1,98 +1,79 @@
-from .. import loader
-from telethon.tl.custom import Button
+from .. import loader, utils
 import asyncio
 
-#meta developer: @hihimods
+#meta developer: @Vert5x
 
 class MassX(loader.Module):
-    """📢 Массовая рассылка сообщений по чатам."""
+    """📢 Модуль для массовой рассылки сообщений"""
 
     strings = {"name": "MassX"}
 
     def __init__(self):
-        self.sending = False
-        self.fast_mode = False
         self.chats = []
+        self.auto_mode = False
+        self.delay = 2  # По умолчанию задержка 2 секунды между отправками
 
-    async def client_ready(self, client, db):
-        self.client = client
-        self.db = db
-        self.chats = db.get(self.strings["name"], "chats", [])
-
-    async def addchatcmd(self, message):
-        """➕ Добавить текущий чат"""
-        chat_id = message.chat_id
-        if chat_id not in self.chats:
-            self.chats.append(chat_id)
-            self.db.set(self.strings["name"], "chats", self.chats)
-            await message.edit("✅ Чат добавлен.")
-        else:
-            await message.edit("⚠️ Уже в списке.")
-
-    async def delchatcmd(self, message):
-        """➖ Удалить текущий чат"""
-        chat_id = message.chat_id
-        if chat_id in self.chats:
-            self.chats.remove(chat_id)
-            self.db.set(self.strings["name"], "chats", self.chats)
-            await message.edit("✅ Чат удалён.")
-        else:
-            await message.edit("⚠️ Чат не найден.")
-
-    async def sendcmd(self, message):
-        """📩 Отправить сообщение с кнопками"""
-        text = message.raw_text.split(" ", 1)[1] if len(message.raw_text.split(" ", 1)) > 1 else "Сообщение по умолчанию"
-        
-        # Создание кнопок для взаимодействия
-        buttons = [
-            [Button.text("Добавить чат", resize=True), Button.text("Список чатов", resize=True)],
-            [Button.text("Остановить рассылку", resize=True)],
-        ]
-
-        self.sending = True
-        count = 0
+    async def send_message_to_chats(self, client, message_text):
         for chat in self.chats:
-            if not self.sending:
-                return await message.edit("⏹ Остановлено!")
-
             try:
-                # Отправка сообщения с кнопками
-                await self.client.send_message(chat, text, buttons=buttons)
-                count += 1
-                if not self.fast_mode:
-                    await asyncio.sleep(1)
-            except Exception:
-                pass
+                await client.send_message(chat, message_text)
+                await asyncio.sleep(self.delay)
+            except Exception as e:
+                print(f"Ошибка при отправке в {chat}: {e}")
 
-        await message.edit(f"✅ Отправлено в {count} чатов.")
+    async def ms(self, message):
+        """📢 Отправить сообщение в чаты (.ms <текст>)"""
+        args = utils.get_args_raw(message)
+        if not args:
+            return await message.edit("⚠️ Укажите текст сообщения.")
 
-    async def stopcmd(self, message):
-        """⏹ Остановить рассылку"""
-        self.sending = False
-        await message.edit("⏹ Рассылка остановлена!")
+        await self.send_message_to_chats(message.client, args)
+        await message.edit(f"✅ Сообщение отправлено в {len(self.chats)} чатов.")
 
-    async def fastcmd(self, message):
-        """⚡ Включить быстрый режим (100 сообщений в секунду)"""
-        self.fast_mode = True
-        await message.edit("⚡ Быстрый режим включен.")
+    async def add(self, message):
+        """➕ Добавить чат (.add <чат>)"""
+        args = utils.get_args_raw(message)
+        if not args:
+            return await message.edit("⚠️ Укажите ID чата или ссылку на чат.")
 
-    async def slowcmd(self, message):
-        """🐢 Включить медленный режим (1 сообщение в секунду)"""
-        self.fast_mode = False
-        await message.edit("🐢 Медленный режим включен.")
+        self.chats.append(args)
+        await message.edit(f"✅ Чат {args} добавлен.")
 
-    async def addallcmd(self, message):
-        """📥 Добавить все чаты (без каналов)"""
-        dialogs = await self.client.get_dialogs()
-        self.chats = [
-            dialog.id for dialog in dialogs
-            if (dialog.is_group or dialog.is_user) and not dialog.is_channel
-        ]
-        self.db.set(self.strings["name"], "chats", self.chats)
-        await message.edit(f"✅ Добавлено {len(self.chats)} чатов.")
+    async def delete(self, message):
+        """❌ Удалить чат (.del <чат>)"""
+        args = utils.get_args_raw(message)
+        if not args or args not in self.chats:
+            return await message.edit("⚠️ Чат не найден.")
 
-    async def clearcmd(self, message):
-        """🗑 Очистить список чатов"""
-        self.chats = []
-        self.db.set(self.strings["name"], "chats", self.chats)
-        await message.edit("🗑 Чаты очищены.")
+        self.chats.remove(args)
+        await message.edit(f"✅ Чат {args} удалён.")
+
+    async def list(self, message):
+        """📜 Список чатов (.list)"""
+        if not self.chats:
+            return await message.edit("⚠️ Нет чатов для рассылки.")
+
+        await message.edit(f"📜 **Чаты:**\n" + "\n".join(self.chats))
+
+    async def auto(self, message):
+        """🔄 Включить авторассылку (.auto)"""
+        self.auto_mode = True
+        await message.edit("✅ Авторассылка включена.")
+
+        while self.auto_mode:
+            await self.send_message_to_chats(message.client, "Автоматическое сообщение")
+            await asyncio.sleep(self.delay)
+
+    async def stop_auto(self, message):
+        """⏹ Остановить авторассылку (.stop)"""
+        self.auto_mode = False
+        await message.edit("⏹ Авторассылка остановлена.")
+
+    async def set_speed(self, message):
+        """⚡ Установить скорость рассылки (.speed <секунды>)"""
+        args = utils.get_args_raw(message)
+        if not args or not args.isdigit():
+            return await message.edit("⚠️ Укажите корректную скорость (в секундах).")
+
+        self.delay = int(args)
+        await message.edit(f"✅ Скорость рассылки установлена на {self.delay} секунд.")
