@@ -2,7 +2,7 @@ from .. import loader
 from telethon.tl.custom import Button
 import asyncio
 
-#meta developer: @Vert5x
+#meta developer: @hihimods
 
 class MassX(loader.Module):
     """📢 Массовая рассылка сообщений по чатам."""
