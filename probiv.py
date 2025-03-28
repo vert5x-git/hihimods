@@ -1,6 +1,5 @@
-from .. import loader
+from .. import loader, utils
 import logging
-import datetime
 import re
 
 # meta developer: @hihimods
@@ -8,66 +7,65 @@ import re
 logger = logging.getLogger(__name__)
 
 class AutoProbe(loader.Module):
-    """🔍 Авто-пробив пользователей, пишущих в ЛС + фан-статистика"""
+    """🔍 Авто-пробив + фан-статистика"""
 
     strings = {"name": "AutoProbe"}
 
     def __init__(self):
-        self.db = {}  # Храним фан-статистику
+        self.db = {}
 
     async def client_ready(self, client, db):
         self.client = client
 
     async def watcher(self, message):
-        if not message.is_private:  # Только ЛС
-            return
+        if message.is_private:
+            await self.probe_user(message, message.sender_id)
 
-        user = await self.client.get_entity(message.sender_id)
+    async def probe(self, message):
+        """🔎 Пробить пользователя (.probe <реплай/юзернейм/ID>)"""
+        args = utils.get_args_raw(message)
+        user = await self.get_user(message, args)
+        if user:
+            await self.probe_user(message, user.id, send_to_me=False)
+
+    async def get_user(self, message, args):
+        if message.is_reply:
+            return await message.get_reply_message().get_sender()
+        if args.isdigit():
+            return await self.client.get_entity(int(args))
+        if args.startswith("@"):
+            return await self.client.get_entity(args)
+        return None
+
+    async def probe_user(self, message, user_id, send_to_me=True):
+        user = await self.client.get_entity(user_id)
         user_id = str(user.id)
 
-        # Обновляем фан-статистику
         if user_id not in self.db:
-            self.db[user_id] = {
-                "messages": 0,
-                "total_length": 0,
-                "longest": "",
-                "shortest": "",
-                "words": {}
-            }
+            self.db[user_id] = {"messages": 0, "total_length": 0, "words": {}}
 
-        user_data = self.db[user_id]
-        user_data["messages"] += 1
-        user_data["total_length"] += len(message.text)
+        self.db[user_id]["messages"] += 1
+        self.db[user_id]["total_length"] += len(message.text)
         words = re.findall(r"\b\w+\b", message.text.lower())
 
         for word in words:
-            user_data["words"][word] = user_data["words"].get(word, 0) + 1
+            self.db[user_id]["words"][word] = self.db[user_id]["words"].get(word, 0) + 1
 
-        if not user_data["longest"] or len(message.text) > len(user_data["longest"]):
-            user_data["longest"] = message.text
-
-        if not user_data["shortest"] or (0 < len(message.text) < len(user_data["shortest"])):
-            user_data["shortest"] = message.text
-
-        # Получаем топ-3 любимых слова
-        top_words = sorted(user_data["words"].items(), key=lambda x: x[1], reverse=True)[:3]
+        top_words = sorted(self.db[user_id]["words"].items(), key=lambda x: x[1], reverse=True)[:3]
         top_words_text = ", ".join(f"{w[0]} ({w[1]})" for w in top_words) if top_words else "Нет данных"
 
-        # Формируем ответ
-        user_info = f"🔎 **Пробив пользователя:**\n\n"
-        user_info += f"🆔 **ID:** `{user.id}`\n"
-        user_info += f"👤 **Username:** @{user.username if user.username else 'Нет'}\n"
-        user_info += f"📅 **Дата регистрации:** {user.date.strftime('%Y-%m-%d') if user.date else 'Неизвестно'}\n"
-        user_info += f"💎 **Premium:** {'✅ Да' if getattr(user, 'premium', False) else '❌ Нет'}\n"
-        user_info += f"📞 **Номер:** `{user.phone if user.phone else 'Скрыт'}`\n"
-        user_info += f"🟢 **Статус:** {str(user.status).replace('UserStatus', '')}\n\n"
+        user_info = (
+            f"🔎 **Пробив пользователя:**\n"
+            f"🆔 **ID:** `{user.id}`\n"
+            f"👤 **Username:** @{user.username if user.username else 'Нет'}\n"
+            f"💎 **Premium:** {'✅ Да' if getattr(user, 'premium', False) else '❌ Нет'}\n"
+            f"📞 **Номер:** `{user.phone if user.phone else 'Скрыт'}`\n"
+            f"📊 **Сообщений:** {self.db[user_id]['messages']}\n"
+            f"📏 **Средняя длина:** {round(self.db[user_id]['total_length'] / self.db[user_id]['messages'], 1)} символов\n"
+            f"🔝 **Любимые слова:** {top_words_text}"
+        )
 
-        # Добавляем фан-статистику
-        user_info += "📊 **Фан-статистика:**\n"
-        user_info += f"📩 **Сообщений отправлено:** {user_data['messages']}\n"
-        user_info += f"📏 **Средняя длина сообщений:** {round(user_data['total_length'] / user_data['messages'], 1)} символов\n"
-        user_info += f"🔠 **Самое длинное:** {user_data['longest'][:50]}...\n"
-        user_info += f"🔡 **Самое короткое:** {user_data['shortest'][:50]}...\n"
-        user_info += f"🔝 **Любимые слова:** {top_words_text}\n"
-
-        await message.client.send_message('me', user_info)
+        if send_to_me:
+            await self.client.send_message("me", user_info)
+        else:
+            await message.edit(user_info)
