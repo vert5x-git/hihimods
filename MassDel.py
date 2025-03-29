@@ -1,4 +1,4 @@
-from telethon.tl.functions.messages import SearchGlobal from telethon.tl.functions.messages import DeleteMessages from .. import loader, utils
+from telethon.tl.functions.messages import DeleteMessages from .. import loader, utils
 
 class MassDeleteMod(loader.Module): """Удаление всех ваших сообщений в группе"""
 
@@ -20,7 +20,7 @@ async def massdelcmd(self, message):
         all_messages.append(msg.id)
     
     if all_messages:
-        await message.client(DeleteMessages(requests=all_messages, revoke=True))
+        await message.client(DeleteMessages(all_messages, revoke=True))
     
     await utils.answer(message, self.strings["done"])
 
