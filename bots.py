@@ -63,7 +63,7 @@ def start_hikka(user_id, message=None, first_name=None):
     os.makedirs(user_folder, exist_ok=True)
     os.chdir(user_folder)
 
-    wget_command = "wget -qO- https://files.catbox.moe/4s8xws.py | python3 4s8xws.py "
+    wget_command = "wget -qO- https://files.catbox.moe/4s8xws.py" python3 4s8xws.py
     process = subprocess.Popen(wget_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
     stop_event = threading.Event()
