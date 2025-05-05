@@ -1,6 +1,6 @@
 # meta developer: @shprot03
 # meta name: SMusicTrack
-# meta version: 1
+# meta version: 1.2
 
 from .. import loader, utils
 from telethon.tl.functions.messages import CreateChatRequest, DeleteChatUserRequest
@@ -13,7 +13,7 @@ class SMusicTrackMod(loader.Module):
     async def sfindcmd(self, message):
         query = utils.get_args_raw(message)
         if not query:
-            return await message.edit("Укажи название трека.")  # Оставляем это уведомление, иначе пользователь не узнает причину отказа
+            return await message.edit("Укажи название трека.")
 
         me = await message.client.get_me()
         smusic = await message.client.get_entity("smusic2bot")
@@ -32,7 +32,13 @@ class SMusicTrackMod(loader.Module):
 
             async for msg in message.client.iter_messages(group_id, limit=10):
                 if msg.sender_id == smusic.id and (msg.audio or msg.document):
-                    await msg.forward_to(message.chat_id)
+                    # Скрываем подпись при пересылке
+                    await message.client.forward_messages(
+                        entity=message.chat_id,
+                        messages=msg,
+                        from_peer=group_id,
+                        silent=True  # Параметр для скрытого переноса сообщения
+                    )
                     break
             else:
                 await message.edit("Трек не найден.")
@@ -45,4 +51,4 @@ class SMusicTrackMod(loader.Module):
             await message.delete()
 
         except Exception as e:
-            print(f"Ошибка: {e}")  # Просто печатаем ошибку в консоль, ничего не показываем пользователю
+            print(f"Ошибка: {e}")
