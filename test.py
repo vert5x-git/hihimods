@@ -4,8 +4,8 @@ from telethon import TelegramClient, events, Button
 
 # Замените на ваши значения
 api_id = 26694251
-api_hash = 5b041e7b70b74c095435be2b74c02abf
-bot_token = 5000594913:AAGJbliI31vdL0AkUhCsk9grA2fipApF3vo
+api_hash = '5b041e7b70b74c095435be2b74c02abf'
+bot_token = '5000594913:AAGJbliI31vdL0AkUhCsk9grA2fipApF3vo'
 ADMIN_ID = 5000047781  # Замените на ваш Telegram ID
 
 client = TelegramClient('casino_bot', api_id, api_hash).start(bot_token=bot_token)
