@@ -4,7 +4,7 @@ import random
 import asyncio
 
 API_TOKEN = '5000594913:AAGJbliI31vdL0AkUhCsk9grA2fipApF3vo'
-ADMIN_ID = ADMIN_ID = 5000594913
+ADMIN_ID = 5000594913
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot)
