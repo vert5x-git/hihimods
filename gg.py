@@ -6,7 +6,7 @@ from aiogram import Bot, Dispatcher, types, executor
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 # Токен вашего бота (замените на свой)
-API_TOKEN = '5000594913:AAGJbliI31vdL0AkUhCsk9grA2fipApF3vo'
+API_TOKEN = "5000594913:AAGJbliI31vdL0AkUhCsk9grA2fipApF3vo"
 
 # Инициализация бота
 bot = Bot(token=API_TOKEN)
