@@ -3,9 +3,9 @@ from telebot import types
 import time
 import sqlite3
 
-TOKEN = 'ВАШ_ТОКЕН_БОТА'
-ADMIN_IDS = [123456789]
-SUPPORT_CHAT_ID = -1001234567890
+TOKEN = '7718204976:AAGhQNlS9ulnqj_SatBQucQTsABVnOE9Co0'
+ADMIN_IDS = [6450469685]
+SUPPORT_CHAT_ID = -4805465459
 
 bot = telebot.TeleBot(TOKEN)
 
