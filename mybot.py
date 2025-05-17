@@ -30,6 +30,7 @@ def init_db():
         created_at TEXT,
         admin_id INTEGER,
         FOREIGN KEY (user_id) REFERENCES users (user_id)
+    )
     ''')
     conn.commit()
     conn.close()
