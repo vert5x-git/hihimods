@@ -1,15 +1,36 @@
+# meta developer: @usershprot
+# meta name: PremiumAutoResp
+# meta version: 1.1
+# meta description: Автоответчик 
+# meta license: MIT
+# meta copyright: © 2025
+#
+# MIT License
+#
+# Copyright (c) 2025 @usershprot
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+
 from .. import loader, utils
 from telethon.tl.custom import Button
 import os
 import time
 
-#meta developer: @Vert5x
-
 class AutoReplyMod(loader.Module):
     """Автоответчик для новых ЛС с базой пользователей и инлайн-кнопками"""
 
     strings = {
-        "name": "AutoReply",
+        "name": "PremiumAutoResp",
         "enabled": "✅ Автоответчик включён",
         "disabled": "❌ Автоответчик выключен",
         "reply_set": "✍️ Сообщение автоответа обновлено",
@@ -38,6 +59,8 @@ class AutoReplyMod(loader.Module):
         self.reply_text = self.db.get("AutoReply", "reply_text", self.DEFAULT_MESSAGE)
         self.image_path = self.db.get("AutoReply", "image_path", None)
         self.users_db = self.db.get("AutoReply_users", {})
+        if self.users_db is None:
+            self.users_db = {}
 
     def get_inline_keyboard(self):
         return [
@@ -47,7 +70,7 @@ class AutoReplyMod(loader.Module):
         ]
 
     async def artogglecmd(self, message):
-        """🔄 Включает/выключает автоответчик"""
+        """🔄 Включает/выключивает автоответчик"""
         self.reply_enabled = not self.reply_enabled
         self.db.set("AutoReply", "enabled", self.reply_enabled)
         await utils.answer(message, self.strings["enabled"] if self.reply_enabled else self.strings["disabled"])
@@ -94,15 +117,18 @@ class AutoReplyMod(loader.Module):
             return
 
         user = await message.get_sender()
-        if user.bot:
+        if user is None or user.bot:
             return
 
         user_id = message.chat_id
         current_time = time.time()
 
+        if self.users_db is None:
+            self.users_db = {}
+
         user_data = self.users_db.get(user_id, {"count": 0, "last_reply": 0})
         
-        if current_time - user_data["last_reply"] < self.REPLY_TIMEOUT:
+        if current_time - user_data.get("last_reply", 0) < self.REPLY_TIMEOUT:
             return
 
         await message.client.send_file(
@@ -113,7 +139,7 @@ class AutoReplyMod(loader.Module):
             parse_mode="MarkdownV2"
         )
 
-        user_data["count"] += 1
+        user_data["count"] = user_data.get("count", 0) + 1
         user_data["last_reply"] = current_time
         self.users_db[user_id] = user_data
         self.db.set("AutoReply_users", self.users_db)
@@ -121,5 +147,7 @@ class AutoReplyMod(loader.Module):
     @loader.inline_handler()
     async def inline_button_handler(self, call):
         """Обработка инлайн-кнопки "Написать снова" """
+        if call is None or call.data is None:
+            return
         if call.data == b"send_again":
             await call.answer("Попробуйте написать снова!", alert=True)
