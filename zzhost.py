@@ -1,4 +1,4 @@
-# meta developer = @usershprot 
+# meta developer : @usershprot 
 # -*- coding: utf-8 -*-
 # Модуль Hikka: Управление #ZenZoneHosting 
 
