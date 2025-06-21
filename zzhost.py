@@ -19,7 +19,7 @@ class ZZHostControl(loader.Module):
         self._user_id = (await client.get_me()).id
 
     async def zzstartcmd(self, message):
-        """Найти последнее сообщение от @zzhost_bot с кнопками"""
+        """меню"""
         async for msg in self.client.iter_messages(self.bot, limit=20):
             if msg.buttons:
                 self._msg = msg
